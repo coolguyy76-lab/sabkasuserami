@@ -1,4 +1,4 @@
-// api/index.js (Node.js runtime, Vercel)
+// api/index.js (ES module)
 async function fetchWithTimeout(url, options = {}, timeout = 5000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
@@ -12,15 +12,13 @@ async function fetchWithTimeout(url, options = {}, timeout = 5000) {
   }
 }
 
-module.exports = async (req, res) => {
-  // Разрешаем только GET
+export default async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    const { id } = req.query; // Vercel парсит query-параметры автоматически
-
+    const { id } = req.query;
     if (!id) {
       return res.status(400).json({ error: 'No ID provided' });
     }
@@ -29,7 +27,6 @@ module.exports = async (req, res) => {
     const BLOCKED_SOURCE = 'https://raw.githubusercontent.com/coolguyy76-lab/gopuy/main/pay.json';
     const USERS_URL = 'https://raw.githubusercontent.com/coolguyy76-lab/users/main/users.json';
 
-    // Загружаем users.json с таймаутом
     let users = {};
     try {
       const usersRes = await fetchWithTimeout(USERS_URL);
@@ -63,4 +60,4 @@ module.exports = async (req, res) => {
     console.error('Handler error:', err);
     res.status(500).json({ error: err.toString() });
   }
-};
+}
