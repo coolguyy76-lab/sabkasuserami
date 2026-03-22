@@ -2,7 +2,7 @@ const ACTIVE_SOURCE = "https://raw.githubusercontent.com/coolguyy76-lab/subnewww
 
 const BLOCKED_SOURCE = "https://raw.githubusercontent.com/coolguyy76-lab/gopuy/refs/heads/main/pay.json";
 
-const USERS_URL = "https://raw.githubusercontent.com/USERNAME/REPO/main/users.json";
+const USERS_URL = "https://raw.githubusercontent.com/coolguyy76-lab/users/refs/heads/main/users.json";
 
 // кэш чтобы не долбить GitHub
 let cache = {
