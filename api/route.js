@@ -11,27 +11,17 @@ export default async function handler(request) {
     const BLOCKED_SOURCE = "https://raw.githubusercontent.com/coolguyy76-lab/gopuy/main/pay.json";
     const USERS_URL = "https://raw.githubusercontent.com/coolguyy76-lab/users/main/users.json";
 
-    // получаем users
     const usersRes = await fetch(USERS_URL);
-    if (!usersRes.ok) {
-      return new Response("users.json error", { status: 500 });
-    }
-
     const users = await usersRes.json();
+
     const user = users[userId];
 
-    // выбираем источник
     const source =
       user && user.status === "active"
         ? ACTIVE_SOURCE
         : BLOCKED_SOURCE;
 
-    // получаем данные
     const dataRes = await fetch(source);
-    if (!dataRes.ok) {
-      return new Response("source error", { status: 500 });
-    }
-
     const text = await dataRes.text();
 
     return new Response(text, {
