@@ -1,20 +1,20 @@
 // api/index.js
-
-export const config = {
-  runtime: 'edge', // используем Edge Runtime для простоты работы с fetch/Response
-};
+export const config = { runtime: 'edge' };
 
 async function fetchWithTimeout(url, options = {}, timeout = 5000) {
-  return Promise.race([
-    fetch(url, options),
-    new Promise((_, reject) =>
-      setTimeout(() => reject(new Error(`Fetch timeout for ${url}`)), timeout)
-    ),
-  ]);
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(id);
+    return response;
+  } catch (error) {
+    clearTimeout(id);
+    throw error;
+  }
 }
 
 export default async function handler(request) {
-  // Разрешаем только GET-запросы (опционально)
   if (request.method !== 'GET') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
       status: 405,
@@ -23,7 +23,6 @@ export default async function handler(request) {
   }
 
   try {
-    // Парсим URL и получаем параметр id
     const url = new URL(request.url);
     const userId = url.searchParams.get('id');
 
@@ -38,20 +37,27 @@ export default async function handler(request) {
     const BLOCKED_SOURCE = 'https://raw.githubusercontent.com/coolguyy76-lab/gopuy/main/pay.json';
     const USERS_URL = 'https://raw.githubusercontent.com/coolguyy76-lab/users/main/users.json';
 
-    console.log('Fetching USERS_URL...');
-    const usersRes = await fetchWithTimeout(USERS_URL);
-    if (!usersRes.ok) throw new Error('Failed to fetch users JSON');
-    const users = await usersRes.json();
+    let users = {};
+    try {
+      const usersRes = await fetchWithTimeout(USERS_URL);
+      if (usersRes.ok) {
+        users = await usersRes.json();
+      } else {
+        console.warn(`Users URL returned ${usersRes.status}, using empty object`);
+      }
+    } catch (err) {
+      console.error('Failed to fetch users.json:', err);
+    }
 
     const user = users[userId];
     const source = user && user.status === 'active' ? ACTIVE_SOURCE : BLOCKED_SOURCE;
 
-    console.log('Fetching source JSON:', source);
     const dataRes = await fetchWithTimeout(source);
-    if (!dataRes.ok) throw new Error('Failed to fetch source JSON');
+    if (!dataRes.ok) {
+      throw new Error(`Source fetch failed: ${dataRes.status}`);
+    }
     const text = await dataRes.text();
 
-    // Возвращаем результат с нужными заголовками
     return new Response(text, {
       headers: {
         'content-type': 'application/json',
@@ -60,7 +66,6 @@ export default async function handler(request) {
         'subscription-auto-update-open-enable': '1',
         'subscriptions-collapse': '0',
         'subscriptions-expand-now': '1',
-        // Добавляем CORS, если API будет вызываться с другого домена
         'Access-Control-Allow-Origin': '*',
       },
     });
