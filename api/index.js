@@ -7,22 +7,32 @@ export default async function handler(request) {
       return new Response("No ID", { status: 400 });
     }
 
-    const ACTIVE_SOURCE = "https://raw.githubusercontent.com/coolguyy76-lab/subnewww/refs/heads/main/combined.json";
-    const BLOCKED_SOURCE = "https://raw.githubusercontent.com/coolguyy76-lab/gopuy/refs/heads/main/pay.json";
-    const USERS_URL = "https://raw.githubusercontent.com/coolguyy76-lab/users/refs/heads/main/users.json";
+    const ACTIVE_SOURCE = "https://raw.githubusercontent.com/coolguyy76-lab/subnewww/main/combined.json";
+    const BLOCKED_SOURCE = "https://raw.githubusercontent.com/coolguyy76-lab/gopuy/main/pay.json";
+    const USERS_URL = "https://raw.githubusercontent.com/coolguyy76-lab/users/main/users.json";
 
+    // получаем users
     const usersRes = await fetch(USERS_URL);
-    const users = await usersRes.json();
+    if (!usersRes.ok) {
+      return new Response("users.json error", { status: 500 });
+    }
 
+    const users = await usersRes.json();
     const user = users[userId];
 
+    // выбираем источник
     const source =
       user && user.status === "active"
         ? ACTIVE_SOURCE
         : BLOCKED_SOURCE;
 
-    const res = await fetch(source);
-    const text = await res.text();
+    // получаем данные
+    const dataRes = await fetch(source);
+    if (!dataRes.ok) {
+      return new Response("source error", { status: 500 });
+    }
+
+    const text = await dataRes.text();
 
     return new Response(text, {
       headers: {
