@@ -1,3 +1,4 @@
+// api/index.js
 export default async function handler(request) {
   try {
     const url = new URL(request.url);
@@ -11,17 +12,19 @@ export default async function handler(request) {
     const BLOCKED_SOURCE = "https://raw.githubusercontent.com/coolguyy76-lab/gopuy/main/pay.json";
     const USERS_URL = "https://raw.githubusercontent.com/coolguyy76-lab/users/main/users.json";
 
+    // Получаем список пользователей
     const usersRes = await fetch(USERS_URL);
+    if (!usersRes.ok) throw new Error("Users JSON not found");
     const users = await usersRes.json();
 
     const user = users[userId];
 
-    const source =
-      user && user.status === "active"
-        ? ACTIVE_SOURCE
-        : BLOCKED_SOURCE;
+    // Выбираем источник
+    const source = user && user.status === "active" ? ACTIVE_SOURCE : BLOCKED_SOURCE;
 
+    // Получаем данные
     const dataRes = await fetch(source);
+    if (!dataRes.ok) throw new Error("Source JSON not found");
     const text = await dataRes.text();
 
     return new Response(text, {
