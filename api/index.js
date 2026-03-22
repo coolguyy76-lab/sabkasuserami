@@ -1,55 +1,48 @@
-// api/index.js
-export const config = { runtime: 'edge' };
-
+// api/index.js (Node.js runtime, Vercel)
 async function fetchWithTimeout(url, options = {}, timeout = 5000) {
   const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), timeout);
+  const timer = setTimeout(() => controller.abort(), timeout);
   try {
-    const response = await fetch(url, { ...options, signal: controller.signal });
-    clearTimeout(id);
-    return response;
-  } catch (error) {
-    clearTimeout(id);
-    throw error;
+    const res = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(timer);
+    return res;
+  } catch (err) {
+    clearTimeout(timer);
+    throw err;
   }
 }
 
-export default async function handler(request) {
-  if (request.method !== 'GET') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers: { 'content-type': 'application/json' },
-    });
+module.exports = async (req, res) => {
+  // Разрешаем только GET
+  if (req.method !== 'GET') {
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    const url = new URL(request.url);
-    const userId = url.searchParams.get('id');
+    const { id } = req.query; // Vercel парсит query-параметры автоматически
 
-    if (!userId) {
-      return new Response(JSON.stringify({ error: 'No ID provided' }), {
-        status: 400,
-        headers: { 'content-type': 'application/json' },
-      });
+    if (!id) {
+      return res.status(400).json({ error: 'No ID provided' });
     }
 
     const ACTIVE_SOURCE = 'https://raw.githubusercontent.com/coolguyy76-lab/subnewww/main/combined.json';
     const BLOCKED_SOURCE = 'https://raw.githubusercontent.com/coolguyy76-lab/gopuy/main/pay.json';
     const USERS_URL = 'https://raw.githubusercontent.com/coolguyy76-lab/users/main/users.json';
 
+    // Загружаем users.json с таймаутом
     let users = {};
     try {
       const usersRes = await fetchWithTimeout(USERS_URL);
       if (usersRes.ok) {
         users = await usersRes.json();
       } else {
-        console.warn(`Users URL returned ${usersRes.status}, using empty object`);
+        console.warn(`Users URL returned ${usersRes.status}`);
       }
     } catch (err) {
-      console.error('Failed to fetch users.json:', err);
+      console.error('Failed to fetch users.json:', err.message);
     }
 
-    const user = users[userId];
+    const user = users[id];
     const source = user && user.status === 'active' ? ACTIVE_SOURCE : BLOCKED_SOURCE;
 
     const dataRes = await fetchWithTimeout(source);
@@ -58,22 +51,16 @@ export default async function handler(request) {
     }
     const text = await dataRes.text();
 
-    return new Response(text, {
-      headers: {
-        'content-type': 'application/json',
-        'profile-update-interval': '1',
-        'profile-title': 'lex',
-        'subscription-auto-update-open-enable': '1',
-        'subscriptions-collapse': '0',
-        'subscriptions-expand-now': '1',
-        'Access-Control-Allow-Origin': '*',
-      },
-    });
-  } catch (e) {
-    console.error('Handler error:', e);
-    return new Response(JSON.stringify({ error: e.toString() }), {
-      status: 500,
-      headers: { 'content-type': 'application/json' },
-    });
+    res.setHeader('content-type', 'application/json');
+    res.setHeader('profile-update-interval', '1');
+    res.setHeader('profile-title', 'lex');
+    res.setHeader('subscription-auto-update-open-enable', '1');
+    res.setHeader('subscriptions-collapse', '0');
+    res.setHeader('subscriptions-expand-now', '1');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.send(text);
+  } catch (err) {
+    console.error('Handler error:', err);
+    res.status(500).json({ error: err.toString() });
   }
-}
+};
