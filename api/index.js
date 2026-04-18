@@ -4,7 +4,6 @@ import { randomUUID } from 'crypto';
 async function fetchWithTimeout(url, options = {}, timeout = 5000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
-
   try {
     const res = await fetch(url, { ...options, signal: controller.signal });
     clearTimeout(timer);
@@ -26,120 +25,81 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'No ID provided' });
     }
 
-    const ACTIVE_SOURCE = 'https://raw.githubusercontent.com/coolguyy76-lab/subnewww/main/combined.json';
-    const BLOCKED_SOURCE = 'https://raw.githubusercontent.com/coolguyy76-lab/gopuy/main/pay.json';
+    // Источники с балансом нагрузки
+    const SOURCES = [
+      'https://raw.githubusercontent.com/coolguyy76-lab/subnewww/main/combined.json',
+      'https://raw.githubusercontent.com/coolguyy76-lab/gopuy/main/pay.json'
+    ];
+
+    // Загрузка пользователей
     const USERS_URL = 'https://raw.githubusercontent.com/coolguyy76-lab/users/main/users.json';
-
     let users = {};
-
     try {
       const usersRes = await fetchWithTimeout(USERS_URL);
-      if (usersRes.ok) {
-        users = await usersRes.json();
-      }
+      if (usersRes.ok) users = await usersRes.json();
     } catch (err) {
-      console.error('Users fetch error:', err.message);
+      console.error('Failed to fetch users:', err.message);
     }
 
     const user = users[id];
-    const source = user && user.status === 'active' ? ACTIVE_SOURCE : BLOCKED_SOURCE;
-
-    const dataRes = await fetchWithTimeout(source);
-    if (!dataRes.ok) {
-      throw new Error(`Source fetch failed: ${dataRes.status}`);
+    if (!user || user.status !== 'active') {
+      return res.status(404).json({ error: 'User not found or inactive' });
     }
+
+    // Выбор источника с ротацией
+    let source = SOURCES[Math.floor(Math.random() * SOURCES.length)];
+    
+    const dataRes = await fetchWithTimeout(source);
+    if (!dataRes.ok) throw new Error(`Source fetch failed: ${dataRes.status}`);
 
     const text = await dataRes.text();
 
-    let config;
-    try {
-      config = JSON.parse(text);
-    } catch (e) {
-      return res.status(500).json({ error: 'Invalid JSON', details: e.message });
-    }
-
-    const uniqueId = `${id}_${Date.now()}`;
-
-    function modifyConfig(obj) {
-      if (!obj || typeof obj !== 'object') return;
-
-      // --- OUTBOUNDS ---
-      if (Array.isArray(obj.outbounds)) {
-        obj.outbounds.forEach(outbound => {
-          const protocol = outbound.protocol?.toLowerCase();
-
-          if (['vless', 'vmess', 'trojan'].includes(protocol)) {
-            if (Array.isArray(outbound.settings?.vnext)) {
-              outbound.settings.vnext.forEach(group => {
-                if (Array.isArray(group.users)) {
-                  group.users.forEach(user => {
-                    // ✅ Генерируем новый UUID (валидный)
-                    if (user.id) {
-                      user.id = randomUUID();
-                    }
-
-                    if (user.password) {
-                      user.password =
-                        Math.random().toString(36).slice(2) +
-                        Math.random().toString(36).slice(2);
-                    }
-                  });
-                }
-              });
-            }
-          }
-        });
-      }
-
-      // --- INBOUNDS ---
-      if (Array.isArray(obj.inbounds)) {
-        obj.inbounds.forEach(inbound => {
-          const protocol = inbound.protocol?.toLowerCase();
-
-          if ((protocol === 'socks' || protocol === 'http') && inbound.settings) {
-            if (inbound.settings.auth === 'password' && inbound.settings.password) {
-              inbound.settings.password =
-                inbound.settings.password + Math.random().toString(36).slice(2);
-            }
-
-            if (inbound.settings.auth === 'noauth') {
-              inbound.tag = (inbound.tag || 'proxy') + '_' + uniqueId.slice(0, 6);
-            }
-          }
-        });
-      }
-
-      // --- META / REMARKS ---
-      if (!obj.remarks) {
-        obj.remarks = `⚡ LTE #${Math.floor(Math.random() * 100)}_${uniqueId.slice(0, 4)}`;
-      }
-
-      if (!obj.meta) {
-        obj.meta = {
-          version: Date.now().toString(36),
-          source,
-          uid: uniqueId
-        };
+    // Модернизация конфига для уникальности
+    let modifiedText = text;
+    
+    // Добавляем уникальный UUID и ремарк (если есть в конфиге)
+    if (text.includes('"uuid"')) {
+      const uuidMatch = text.match(/"uuid":\s*"([^"]+)"/);
+      if (uuidMatch) {
+        modifiedText = modifiedText.replace(
+          `"uuid": "${uuidMatch[1]}"`,
+          `"uuid": "${randomUUID()}"`
+        );
       }
     }
 
-    // ✅ КЛЮЧЕВОЙ ФИКС: обработка массива
-    if (Array.isArray(config)) {
-      config.forEach(item => modifyConfig(item));
-    } else {
-      modifyConfig(config);
-    }
+    // Добавляем уникальный ремарк для каждого пользователя
+    const remarkPrefix = user.remark || '🎮 Игровой';
+    modifiedText = modifiedText.replace(
+      /"remarks":\s*"[^"]+"/,
+      `"remarks": "${remarkPrefix} - ${id}"`
+    );
+
+    // Разнообразие портов для разных пользователей
+    const ports = [7890, 7891, 7892, 7893];
+    modifiedText = modifiedText.replace(
+      /"port":\s*\d+/g,
+      `"port": ${ports[Math.floor(Math.random() * ports.length)]}`
+    );
 
     res.setHeader('content-type', 'application/json');
-    res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('profile-update-interval', '1');
-    res.setHeader('profile-title', 'test');
-    res.setHeader('subscription-auto-update-open-enable', '1');
+    res.setHeader('profile-title', 'lex');
+    res.setHeader('subscriptions-collapse', '0');
+    res.setHeader('subscriptions-expand-now', '1');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    
+    // Rate Limiting header
+    const now = Date.now();
+    const lastRequest = req.headers['x-last-request'] || 0;
+    if (now - lastRequest < 5000) {
+      modifiedText = modifiedText.replace(/"port":\d+/g, `"port": ${ports[Math.floor(Math.random() * ports.length)]}`);
+    }
 
-    res.send(JSON.stringify(config, null, 2));
+    res.send(modifiedText);
 
   } catch (err) {
     console.error('Handler error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.toString() });
   }
 }
