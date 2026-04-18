@@ -128,7 +128,7 @@ export default async function handler(req, res) {
     // --- 4. Возвращаем модифицированный JSON ---
     res.setHeader('content-type', 'application/json');
     res.setHeader('profile-update-interval', '1');
-    res.setHeader('profile-title', 'lex');
+    res.setHeader('profile-title', 'lexxx');
     res.setHeader('subscription-auto-update-open-enable', '1');
     res.setHeader('subscriptions-collapse', '0');
     res.setHeader('subscriptions-expand-now', '1');
