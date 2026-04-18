@@ -54,4 +54,4 @@ export default async function handler(req, res) {
     res.status(500).json({ error: err.toString() });
   }
 } 
-вот мой код versel путь на git sabkasuserami/api/index.js
+
