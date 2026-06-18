@@ -26,7 +26,7 @@ function parseExpireDate(value) {
 
 // Общие заголовки для ответа
 function setCommonHeaders(res) {
-  res.setHeader('announce', 'сервер может не отображать пинг, но он работает');
+  res.setHeader('announce', '0YHQtdGA0LLQtdGAINC80L7QttC10YIg0L3QtSDQvtGC0L7QsdGA0LDQttCw0YLRjCDQv9C40L3Qsywg0L3QviDQvtC9INGA0LDQsdC+0YLQsNC10YIK');
   res.setHeader('content-type', 'application/json');
   res.setHeader('profile-update-interval', '1');
   res.setHeader('profile-title', 'lex');
