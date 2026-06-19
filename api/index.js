@@ -12,7 +12,7 @@ async function fetchWithTimeout(url, options = {}, timeout = 5000) {
   }
 }
 
-// Преобразование даты из формата "dd.mm.yyyy" в UNIX timestamp (UTC)
+// Преобразование даты
 function parseExpireDate(value) {
   if (typeof value === 'number') return value;
   if (typeof value !== 'string') return 0;
@@ -26,7 +26,6 @@ function parseExpireDate(value) {
 
 // Общие заголовки для ответа
 function setCommonHeaders(res) {
-  res.setHeader('announce', '0YHQtdGA0LLQtdGAINC80L7QttC10YIg0L3QtSDQvtGC0L7QsdGA0LDQttCw0YLRjCDQv9C40L3Qsywg0L3QviDQvtC9INGA0LDQsdC+0YLQsNC10YIK');
   res.setHeader('content-type', 'application/json');
   res.setHeader('profile-update-interval', '1');
   res.setHeader('profile-title', 'lex');
